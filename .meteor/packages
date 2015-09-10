@@ -72,3 +72,6 @@ perak:markdown
 seriousm:emoji-continued
 templates:tabs
 verron:autosize
+
+#REST API
+nimble:restivus

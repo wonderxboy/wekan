@@ -94,6 +94,7 @@ mquandalle:moment@1.0.0
 mquandalle:mousetrap-bindglobal@0.0.1
 mquandalle:perfect-scrollbar@0.6.5_2
 mquandalle:stylus@1.1.1
+nimble:restivus@0.8.4
 npm-bcrypt@0.7.8_2
 npm-mongo@1.4.39-rc.0_1
 observe-sequence@1.0.7-rc.0
@@ -118,6 +119,7 @@ seriousm:emoji-continued@1.4.0
 service-configuration@1.0.5-rc.0
 session@1.1.1-rc.0
 sha@1.0.4-rc.0
+simple:json-routes@1.0.4
 softwarerero:accounts-t9n@1.0.9
 spacebars@1.0.7-rc.0
 spacebars-compiler@1.0.7-rc.0
