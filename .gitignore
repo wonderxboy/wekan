@@ -5,3 +5,4 @@
 *.sublime-workspace
 tmp/
 .build/**/
+server/settings.json
