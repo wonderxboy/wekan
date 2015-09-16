@@ -5,12 +5,16 @@ Boards = new Mongo.Collection('board');
     useDefaultAuth: false,
     auth: {
       user: function() {
-        if (this.queryParams.token === Meteor.settings.authToken) {
-          return { user : Meteor.users.findOne({"username": "mike"})};
-        }
-        else {
+        var clientIpAddress = this.request.headers['x-forwarded-for'].split(',')[0];
+        if (!isIpAddressAllowed(clientIpAddress)) {
           return null;
         }
+        
+        if (this.queryParams.token !== Meteor.settings.authToken) {
+          return null;
+        }
+        
+        return { user : Meteor.users.findOne({"username": "mike"})};
       }
     },
     prettyJson: true,
