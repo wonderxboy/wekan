@@ -1,3 +1,4 @@
+/* global isIpAddressAllowed */
 /* global allowIsBoardAdmin */
 /* global allowIsBoardMember */
 /* global Boards */
@@ -13,7 +14,7 @@ allowIsBoardMember = function(userId, board) {
   return _.contains(_.pluck(board.members, 'userId'), userId);
 };
 
-function isIpAddressAllowed(ip) {
+isIpAddressAllowed = function(ip) {
   var allowedIpAddresses = Meteor.settings.allowedBackendServiceIp.split(',');
   for(var k in allowedIpAddresses) {
     if (allowedIpAddresses[k] == ip) {
