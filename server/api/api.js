@@ -32,7 +32,12 @@ Boards = new Mongo.Collection('board');
   Api.addRoute('users/:id', {authRequired: true}, {
     get: function () {
       if(this.urlParams.id == this.user.username) {
-          return { 'username': this.user.username, 'token': this.user.services.resume.loginTokens };
+          return { 
+            'username': this.user.username,
+            'userId': this.userId,
+            'token': this.user.services.resume.loginTokens, 
+            'tokenExpire': Accounts._tokenExpiration(this.user.services.resume.loginTokens[0].when)
+          };
       }
     }
   });
