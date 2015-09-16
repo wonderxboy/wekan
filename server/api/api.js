@@ -5,16 +5,18 @@ Boards = new Mongo.Collection('board');
     useDefaultAuth: false,
     auth: {
       user: function() {
-        var clientIpAddress = this.request.headers['x-forwarded-for'].split(',')[0];
-        if (!isIpAddressAllowed(clientIpAddress)) {
-          return null;
+        if (this.queryParams.token && this.queryParams.username) {
+          var clientIpAddress = this.request.headers['x-forwarded-for'].split(',')[0];
+          if (!isIpAddressAllowed(clientIpAddress)) {
+            return null;
+          }
+          
+          if (this.queryParams.token !== Meteor.settings.authToken) {
+            return null;
+          }
+          
+          return { user : Meteor.users.findOne({"username": this.queryParams.username})};
         }
-        
-        if (this.queryParams.token !== Meteor.settings.authToken) {
-          return null;
-        }
-        
-        return { user : Meteor.users.findOne({"username": "mike"})};
       }
     },
     prettyJson: true,
@@ -22,24 +24,15 @@ Boards = new Mongo.Collection('board');
       console.log(this.user.username + ' (' + this.userId + ') logged in');
     },
   });
-
+  
   // Generates: GET, POST on /api/items and GET, PUT, DELETE on
   // /api/items/:id for the Items collection
   Api.addCollection(Boards);
 
-  // Generates: POST on /api/users and GET, DELETE /api/users/:id for
-  // Meteor.users collection
-  Api.addCollection(Meteor.users, {
-    //excludedEndpoints: ['getAll', 'put'],
-    routeOptions: {
-      authRequired: false
-    },
-    endpoints: {
-      post: {
-        authRequired: false
-      },
-      delete: {
-        roleRequired: 'admin'
+  Api.addRoute('users/:id', {authRequired: true}, {
+    get: function () {
+      if(this.urlParams.id == this.user.username) {
+          return { 'username': this.user.username, 'token': this.user.services.resume.loginTokens };
       }
     }
   });
