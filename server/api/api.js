@@ -6,11 +6,6 @@ Boards = new Mongo.Collection('board');
     auth: {
       user: function() {
         if (this.queryParams.token && this.queryParams.username) {
-          var clientIpAddress = this.request.headers['x-forwarded-for'].split(',')[0];
-          if (!isIpAddressAllowed(clientIpAddress)) {
-            return null;
-          }
-          
           if (this.queryParams.token !== Meteor.settings.authToken) {
             return null;
           }
