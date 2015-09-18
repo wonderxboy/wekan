@@ -8,6 +8,7 @@ wekan_prod:
     - MONGO_URL=mongodb://wekandb_prod/wekan
     - ROOT_URL=http://localhost:80
     - BUNDLE_URL=https://www.dropbox.com/s/ox84l7hkcilw3bk/CollaBoard.tar.gz?raw=1
+    - METEOR_SETTINGS={ "authToken":"" }
   ports:
     - 80:80
 
