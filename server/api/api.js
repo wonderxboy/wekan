@@ -27,11 +27,21 @@ Boards = new Mongo.Collection('board');
   Api.addRoute('users/:id', {authRequired: true}, {
     get: function () {
       if(this.urlParams.id == this.user.username) {
+          var stampedToken = Accounts._generateStampedLoginToken();
+          var hashStampedToken = Accounts._hashStampedToken(stampedToken);
+          
+          //push resume token
+          Meteor.users.update(this.user._id, 
+            {$push: {'services.resume.loginTokens': hashStampedToken}}
+          );
+          var when = stampedToken.when;
+          
+          when.setDate(when.getDate() + 365);
           return { 
             'username': this.user.username,
             'userId': this.userId,
-            'token': this.user.services.resume.loginTokens, 
-            'tokenExpire': Accounts._tokenExpiration(this.user.services.resume.loginTokens[0].when)
+            'token': stampedToken.token, 
+            'tokenExpire': when.toString()
           };
       }
     }
