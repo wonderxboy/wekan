@@ -76,3 +76,4 @@ verron:autosize
 #REST API
 nimble:restivus
 accounts-base
+alanning:roles

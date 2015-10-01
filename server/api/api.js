@@ -5,6 +5,7 @@ Boards = new Mongo.Collection('board');
     useDefaultAuth: false,
     auth: {
       user: function() {
+        //TODO: check token auth first
         if (this.queryParams.token && this.queryParams.username) {
           if (this.queryParams.token !== Meteor.settings.authToken) {
             return null;
@@ -24,9 +25,10 @@ Boards = new Mongo.Collection('board');
   // /api/items/:id for the Items collection
   Api.addCollection(Boards);
 
-  Api.addRoute('users/:id', {authRequired: true}, {
-    get: function () {
-      if(this.urlParams.id == this.user.username) {
+  Api.addRoute('users', { authRequired: true }, {
+    get: { 
+      roleRequired: ['admin'],
+      action: function () {
           var stampedToken = Accounts._generateStampedLoginToken();
           var hashStampedToken = Accounts._hashStampedToken(stampedToken);
           
@@ -44,6 +46,23 @@ Boards = new Mongo.Collection('board');
             'tokenExpire': when.toString()
           };
       }
+    },
+    
+    post: { 
+      roleRequired: ['admin'],
+      action: function () {
+        var existingUser = Meteor.users.findOne({ "username": this.bodyParams.username });
+        if (existingUser != null) {
+          return { userId: existingUser._id };
+        }
+        
+        var userId = Accounts.createUser({ username: this.bodyParams.username, email: this.bodyParams.email, password: this.bodyParams.password });
+        if (userId) {
+          return { userId : userId };
+        }
+        
+        return { stausCode: 500 };  
+      }
     }
   });
 
@@ -51,17 +70,5 @@ Boards = new Mongo.Collection('board');
   Api.addRoute('boards/:id', {authRequired: true}, {
     get: function () {
       return Boards.findOne(this.urlParams.id);
-    },
-    delete: {
-      roleRequired: ['author', 'admin'],
-      action: function () {
-        if (Articles.remove(this.urlParams.id)) {
-          return {status: 'success', data: {message: 'Article removed'}};
-        }
-        return {
-          statusCode: 404,
-          body: {status: 'fail', message: 'Article not found'}
-        };
-      }
     }
   });
