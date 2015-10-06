@@ -1,5 +1,20 @@
 Boards = new Mongo.Collection('board');
 
+function boostrapAdmin(){
+  // Roles.createRole("admin");
+  // var userId = Accounts.createUser({ 
+  //   username: "admin", 
+  //   email: "wonderxboy+ctaskAdmin@gmail.com", 
+  //   password: "{add password here}", 
+  //   roles: ['admin'] });
+    
+  // if (!userId) {
+  //   return 'admin not created';
+  // }
+  // var adminUser = Meteor.users.findOne({ "username": "admin" });
+  // Roles.addUsersToRoles(adminUser._id, "admin"); 
+}
+  
   // Global API configuration
   var Api = new Restivus({
     useDefaultAuth: false,
@@ -24,30 +39,31 @@ Boards = new Mongo.Collection('board');
   // Generates: GET, POST on /api/items and GET, PUT, DELETE on
   // /api/items/:id for the Items collection
   Api.addCollection(Boards);
-
-  Api.addRoute('users', { authRequired: true }, {
+  
+  Api.addRoute('users/:id', { authRequired: true }, {
     get: { 
-      roleRequired: ['admin'],
-      action: function () {
-          var stampedToken = Accounts._generateStampedLoginToken();
-          var hashStampedToken = Accounts._hashStampedToken(stampedToken);
-          
-          //push resume token
-          Meteor.users.update(this.user._id, 
-            {$push: {'services.resume.loginTokens': hashStampedToken}}
-          );
-          var when = stampedToken.when;
-          
-          when.setDate(when.getDate() + 365);
-          return { 
-            'username': this.user.username,
-            'userId': this.userId,
-            'token': stampedToken.token, 
-            'tokenExpire': when.toString()
-          };
+          action: function () {
+              var stampedToken = Accounts._generateStampedLoginToken();
+              var hashStampedToken = Accounts._hashStampedToken(stampedToken);
+              
+              //push resume token
+              Meteor.users.update(this.urlParams.id, 
+                {$push: {'services.resume.loginTokens': hashStampedToken}}
+              );
+              var when = stampedToken.when;
+              
+              when.setDate(when.getDate() + 365);
+              return { 
+                'username': this.user.username,
+                'userId': this.userId,
+                'token': stampedToken.token, 
+                'tokenExpire': when.toString()
+              };
+          }
       }
-    },
+    });
     
+  Api.addRoute('users', { authRequired: false }, {
     post: { 
       roleRequired: ['admin'],
       action: function () {
@@ -66,8 +82,7 @@ Boards = new Mongo.Collection('board');
     }
   });
 
-  // Maps to: /api/articles/:id
-  Api.addRoute('boards/:id', {authRequired: true}, {
+  Api.addRoute('boards/:id', { authRequired: true }, {
     get: function () {
       return Boards.findOne(this.urlParams.id);
     }
