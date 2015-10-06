@@ -47,16 +47,17 @@ function boostrapAdmin(){
               var hashStampedToken = Accounts._hashStampedToken(stampedToken);
               
               //push resume token
-              Meteor.users.update(this.urlParams.id, 
+              Meteor.users.update(this.userId, 
                 {$push: {'services.resume.loginTokens': hashStampedToken}}
               );
+              
               var when = stampedToken.when;
               
               when.setDate(when.getDate() + 365);
               return { 
                 'username': this.user.username,
                 'userId': this.userId,
-                'token': stampedToken.token, 
+                'token': stampedToken.token,
                 'tokenExpire': when.toString()
               };
           }
