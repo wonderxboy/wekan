@@ -142,3 +142,40 @@ function boostrapAdmin(){
       }
     }
   });
+
+  Api.addRoute('boards/:id/persmissions', { authRequired: true }, {
+    post: { 
+      roleRequired: ['admin'],
+      action: function () {
+        
+        var board = Boards.findOne({ "_id" : this.urlParams.id });
+        if (board == null && board._id == null) {
+          return { stausCode: 404, message: "Board not found." };
+        }
+        
+        var users = this.bodyParams.users;
+        if (users == null) {
+          return { stausCode: 404, message: "Users are requried." };
+        }
+        
+        var usersToAdd = [];
+        for(var key in users) {
+          var grantuser = Meteor.users.findOne({ "username": users[key] });
+          if (grantuser != null) {
+            if (!_.findWhere(board.members, { userId : grantuser._id })) {
+              usersToAdd.push({ userId: grantuser._id, isAdmin: false, isActive: true });
+            }
+          }
+        }
+        
+        if (usersToAdd.length > 0) {
+            Boards.direct.update(board._id, 
+              {$push: {'members': { $each: usersToAdd }}}
+            );
+            return { stausCode: 200 };
+        }
+        
+        return { stausCode: 200 };
+      }
+    }
+  });
