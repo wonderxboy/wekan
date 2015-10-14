@@ -64,29 +64,52 @@ function boostrapAdmin(){
   
   //users
   Api.addRoute('users/:id', { authRequired: true }, {
-    get: { 
-          action: function () {
-              var stampedToken = Accounts._generateStampedLoginToken();
-              var hashStampedToken = Accounts._hashStampedToken(stampedToken);
-              
-              //push resume token
-              Meteor.users.update(this.userId, 
-                {$push: {'services.resume.loginTokens': hashStampedToken}}
-              );
-              
-              var when = stampedToken.when;
-              
-              when.setDate(when.getDate() + 365);
-              return { 
-                'username': this.user.username,
-                'userId': this.userId,
-                'token': stampedToken.token,
-                'tokenExpire': when.toString()
-              };
-          }
+    get: {
+        roleRequired: ['admin'],
+        action: function () {
+          var stampedToken = Accounts._generateStampedLoginToken();
+          var hashStampedToken = Accounts._hashStampedToken(stampedToken);
+          
+          //push resume token
+          Meteor.users.update(this.userId, 
+            {$push: {'services.resume.loginTokens': hashStampedToken}}
+          );
+          
+          var when = stampedToken.when;
+          
+          when.setDate(when.getDate() + 365);
+          return { 
+            'username': this.user.username,
+            'userId': this.userId,
+            'token': stampedToken.token,
+            'tokenExpire': when.toString()
+          };
+        }
       }
     });
 
+  Api.addRoute('users/:username/boards', { authRequired: true }, {
+    get: { 
+          roleRequired: ['admin'],
+          action: function () {
+            var existingUser = Meteor.users.findOne({ username : this.urlParams.username });
+            if (existingUser == null) {
+              return { stausCode: 404, message: "User " + this.urlParams.username + " not found" };
+            }
+            
+            var result = Boards.find({}, 
+              { fields: { title:1 } , memebers : { $elemMatch: { userId: existingUser._id  }}})
+              .fetch();
+
+            if (result.length == 0){
+              return { stausCode: 404, message: "User " + this.urlParams.username + " does not have any board" }; 
+            }
+            
+            return { boards : result };
+          }
+      }
+    });
+    
   Api.addRoute('users', { authRequired: true }, {
     post: { 
       roleRequired: ['admin'],
