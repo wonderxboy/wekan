@@ -1,5 +1,31 @@
-Boards = new Mongo.Collection('board');
+//This function is a copy of the Board.before.insert function of the BoardCollections in Boards.js
+function getBoard(userId, doc) {
+  doc.slug = doc.title;
+  doc.createdAt = new Date();
+  doc.archived = false;
+  doc.members = doc.members || [{
+    userId,
+    isAdmin: true,
+    isActive: true,
+  }];
+  doc.stars = 0;
+  //Boards refers to the Boards instance from BoardCollections
+  doc.color = Boards.simpleSchema()._schema.color.allowedValues[0];
 
+  //Handle labels
+  const colors = Boards.simpleSchema()._schema['labels.$.color'].allowedValues;
+  const defaultLabelsColors = _.clone(colors).splice(0, 6);
+  doc.labels = _.map(defaultLabelsColors, (color) => {
+    return {
+      color,
+      _id: Random.id(6),
+      name: '',
+    };
+  });
+  
+  return doc;
+}
+    
 function boostrapAdmin(){
   // Roles.createRole("admin");
   // var userId = Accounts.createUser({ 
@@ -36,10 +62,7 @@ function boostrapAdmin(){
     },
   });
   
-  // Generates: GET, POST on /api/items and GET, PUT, DELETE on
-  // /api/items/:id for the Items collection
-  Api.addCollection(Boards);
-  
+  //users
   Api.addRoute('users/:id', { authRequired: true }, {
     get: { 
           action: function () {
@@ -63,8 +86,8 @@ function boostrapAdmin(){
           }
       }
     });
-    
-  Api.addRoute('users', { authRequired: false }, {
+
+  Api.addRoute('users', { authRequired: true }, {
     post: { 
       roleRequired: ['admin'],
       action: function () {
@@ -78,13 +101,44 @@ function boostrapAdmin(){
           return { userId : userId };
         }
         
-        return { stausCode: 500 };  
+        return { stausCode: 500, message: "Error when creating user account" };  
       }
     }
   });
 
-  Api.addRoute('boards/:id', { authRequired: true }, {
-    get: function () {
-      return Boards.findOne(this.urlParams.id);
+  //boards
+  Api.addRoute('boards', { authRequired: true }, {
+    post: { 
+      roleRequired: ['admin'],
+      action: function () {
+        var boardTitle = this.bodyParams.title;
+        var username = this.bodyParams.username;
+        
+        if (boardTitle == null){
+          return { stausCode: 404, message: "Title is requried." };
+        }
+        
+        if (username == null){
+          return { stausCode: 404, message: "Username is requried." };
+        }
+        
+        var boardAdmin = Meteor.users.findOne({ "username": username });
+        if (boardAdmin == null) {
+          return { stausCode: 404, message: "User '" + username + "' does not exist" };
+        }
+        
+        var board = Boards.findOne({ "title" : boardTitle });
+        if (board != null && board._id != null) {
+          return { id : board._id };
+        }
+        else {
+            //TODO: make it work with hooks (matb33/meteor-collection-hooks) defined in Boards.js
+            var boardToInsert = getBoard(boardAdmin._id, { title: boardTitle, permission: "private" });
+            var boardId =  Boards.direct.insert(boardToInsert);
+            return { id: boardId };
+        }
+        
+        return { stausCode: 500, message: "Error when creating board" };  
+      }
     }
   });
