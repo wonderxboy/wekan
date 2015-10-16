@@ -40,7 +40,32 @@ function boostrapAdmin(){
   // var adminUser = Meteor.users.findOne({ "username": "admin" });
   // Roles.addUsersToRoles(adminUser._id, "admin"); 
 }
+
+function getUserBoards(username, teamname) {
+  var existingUser = Meteor.users.findOne({ username : username });
+  if (existingUser == null) {
+    return { stausCode: 404, message: "User " + username + " not found" };
+  }
+  console.log("teamname:" + teamname);
   
+  if (teamname == null) {
+    return { stausCode: 404, message: "Team name is required" };
+  }
+  
+  var teamnameRegex = new RegExp('^' + teamname.toLowerCase(), 'i')
+  var result = Boards.find(
+          { $and: [{ team: {$regex: teamnameRegex} }, 
+                   { members: { $elemMatch: { userId: existingUser._id }}}]},
+          { fields: { title:1 }})
+    .fetch();
+
+  if (result.length == 0){
+    return { stausCode: 404, message: "User " + username + " does not have any board" }; 
+  }
+  
+  return { boards : result };
+}
+
   // Global API configuration
   var Api = new Restivus({
     useDefaultAuth: false,
@@ -88,24 +113,11 @@ function boostrapAdmin(){
       }
     });
 
-  Api.addRoute('users/:username/boards', { authRequired: true }, {
+  Api.addRoute('users/:username/:teamname/boards', { authRequired: true }, {
     get: { 
           roleRequired: ['admin'],
-          action: function () {
-            var existingUser = Meteor.users.findOne({ username : this.urlParams.username });
-            if (existingUser == null) {
-              return { stausCode: 404, message: "User " + this.urlParams.username + " not found" };
-            }
-            
-            var result = Boards.find({}, 
-              { fields: { title:1 } , memebers : { $elemMatch: { userId: existingUser._id  }}})
-              .fetch();
-
-            if (result.length == 0){
-              return { stausCode: 404, message: "User " + this.urlParams.username + " does not have any board" }; 
-            }
-            
-            return { boards : result };
+          action: function() {
+            return getUserBoards(this.urlParams.username, this.urlParams.teamname);
           }
       }
     });
@@ -136,6 +148,7 @@ function boostrapAdmin(){
       action: function () {
         var boardTitle = this.bodyParams.title;
         var username = this.bodyParams.username;
+        var team = this.bodyParams.team;
         
         if (boardTitle == null){
           return { stausCode: 404, message: "Title is requried." };
@@ -143,6 +156,10 @@ function boostrapAdmin(){
         
         if (username == null){
           return { stausCode: 404, message: "Username is requried." };
+        }
+        
+        if (team == null) {
+          return { stausCode: 404, message: "Team is requried." };
         }
         
         var boardAdmin = Meteor.users.findOne({ "username": username });
@@ -156,7 +173,7 @@ function boostrapAdmin(){
         }
         else {
             //TODO: make it work with hooks (matb33/meteor-collection-hooks) defined in Boards.js
-            var boardToInsert = getBoard(boardAdmin._id, { title: boardTitle, permission: "private" });
+            var boardToInsert = getBoard(boardAdmin._id, { title: boardTitle, team: team, permission: "private" });
             var boardId =  Boards.direct.insert(boardToInsert);
             return { id: boardId };
         }

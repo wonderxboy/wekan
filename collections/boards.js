@@ -4,6 +4,9 @@ Boards.attachSchema(new SimpleSchema({
   title: {
     type: String,
   },
+  team: {
+    type: String,
+  },
   slug: {
     type: String,
   },
