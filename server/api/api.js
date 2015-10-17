@@ -41,22 +41,21 @@ function boostrapAdmin(){
   // Roles.addUsersToRoles(adminUser._id, "admin"); 
 }
 
-function getUserBoards(username, teamname) {
+function getUserBoards(username, team): any {
   var existingUser = Meteor.users.findOne({ username : username });
   if (existingUser == null) {
     return { stausCode: 404, message: "User " + username + " not found" };
   }
-  console.log("teamname:" + teamname);
-  
-  if (teamname == null) {
+
+  if (team == null) {
     return { stausCode: 404, message: "Team name is required" };
   }
   
-  var teamnameRegex = new RegExp('^' + teamname.toLowerCase(), 'i')
+  var teamnameRegex = new RegExp('^' + team.toLowerCase(), 'i')
   var result = Boards.find(
           { $and: [{ team: {$regex: teamnameRegex} }, 
                    { members: { $elemMatch: { userId: existingUser._id }}}]},
-          { fields: { title:1 }})
+          { fields: { title:1, team:1 }})
     .fetch();
 
   if (result.length == 0){
@@ -92,6 +91,7 @@ function getUserBoards(username, teamname) {
     get: {
         roleRequired: ['admin'],
         action: function () {
+          //TODO: use run as to run as user :id for this function, so that the auth token user and the target user can be different
           var stampedToken = Accounts._generateStampedLoginToken();
           var hashStampedToken = Accounts._hashStampedToken(stampedToken);
           
@@ -113,11 +113,11 @@ function getUserBoards(username, teamname) {
       }
     });
 
-  Api.addRoute('users/:username/:teamname/boards', { authRequired: true }, {
+  Api.addRoute('users/:username/:team/boards', { authRequired: true }, {
     get: { 
           roleRequired: ['admin'],
           action: function() {
-            return getUserBoards(this.urlParams.username, this.urlParams.teamname);
+            return getUserBoards(this.urlParams.username, this.urlParams.team);
           }
       }
     });
@@ -169,13 +169,13 @@ function getUserBoards(username, teamname) {
         
         var board = Boards.findOne({ "title" : boardTitle, "team" : team });
         if (board != null && board._id != null) {
-          return { id : board._id };
+          return { _id : board._id, team: board.team, title: board.title };
         }
         else {
             //TODO: make it work with hooks (matb33/meteor-collection-hooks) defined in Boards.js
             var boardToInsert = getBoard(boardAdmin._id, { title: boardTitle, team: team, permission: "private" });
             var boardId =  Boards.direct.insert(boardToInsert);
-            return { id: boardId };
+            return { _id: boardId, team: team, title: boardTitle };
         }
         
         return { stausCode: 500, message: "Error when creating board" };  
