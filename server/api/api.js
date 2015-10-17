@@ -167,7 +167,7 @@ function getUserBoards(username, teamname) {
           return { stausCode: 404, message: "User '" + username + "' does not exist" };
         }
         
-        var board = Boards.findOne({ "title" : boardTitle });
+        var board = Boards.findOne({ "title" : boardTitle, "team" : team });
         if (board != null && board._id != null) {
           return { id : board._id };
         }
