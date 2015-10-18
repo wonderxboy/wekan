@@ -17,6 +17,26 @@ FlowRouter.route('/', {
   },
 });
 
+FlowRouter.route('/redirect/b/:team/:title', {
+  triggersEnter: [function(context, redirect) {
+  var result = Meteor.call("getUserBoardsServer",
+              Meteor.userId(),
+              context.params.team,
+              context.params.title,
+              function(error, result){
+                if (result && result.length > 0) {
+                  //can not user redirect here because it is async result
+                  FlowRouter.go("/b/" + result[0]._id + "/" + result[0].slug);
+                }
+                else {
+                  FlowRouter.go("/");
+                }
+              });
+  }],
+  action: function(params) {
+  }
+});
+
 FlowRouter.route('/b/:id/:slug', {
   name: 'board',
   action(params) {
