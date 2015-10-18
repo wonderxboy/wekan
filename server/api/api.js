@@ -25,7 +25,38 @@ function getBoard(userId, doc) {
   
   return doc;
 }
+
+function verifiyDbResumeToken(username, resumeToken) {
+  if (!username || !resumeToken) {
+    return null;
+  }
+  var user = Meteor.users.findOne({ username: username });
+  if (user) {
+    var loginTokens = user.services.resume.loginTokens;
+    if (loginTokens && loginTokens.length > 0) {
+      var hashResumedToken = Accounts._hashStampedToken({ token: resumeToken, when: new Date() });
+      var existingToken = loginTokens[loginTokens.length - 1];
+      if (existingToken 
+          && existingToken.hashedToken == hashResumedToken.hashedToken
+          && existingToken.when <= hashResumedToken.when) {
+        return user;
+      }
+    }
+  }
+  
+  return null;
+}
+
+function verifySettingAuthToken(username, settingAuthToken){
+  if (username && settingAuthToken) {
+    if (settingAuthToken !== Meteor.settings.authToken) {
+      return null;
+    }
     
+    return Meteor.users.findOne({ username: username });
+  }
+}
+
 function boostrapAdmin(){
   // Roles.createRole("admin");
   // var userId = Accounts.createUser({ 
@@ -41,11 +72,7 @@ function boostrapAdmin(){
   // Roles.addUsersToRoles(adminUser._id, "admin"); 
 }
 
-function getUserBoards(username, team): any {
-  var existingUser = Meteor.users.findOne({ username : username });
-  if (existingUser == null) {
-    return { stausCode: 404, message: "User " + username + " not found" };
-  }
+function getUserBoards(userId, team): any {
 
   if (team == null) {
     return { stausCode: 404, message: "Team name is required" };
@@ -54,12 +81,12 @@ function getUserBoards(username, team): any {
   var teamnameRegex = new RegExp('^' + team.toLowerCase(), 'i')
   var result = Boards.find(
           { $and: [{ team: {$regex: teamnameRegex} }, 
-                   { members: { $elemMatch: { userId: existingUser._id }}}]},
+                   { members: { $elemMatch: { userId: userId }}}]},
           { fields: { title:1, team:1 }})
     .fetch();
 
   if (result.length == 0){
-    return { stausCode: 404, message: "User " + username + " does not have any board" }; 
+    return { stausCode: 404, message: "User " + userId + " does not have any board" }; 
   }
   
   return { boards : result };
@@ -70,13 +97,18 @@ function getUserBoards(username, team): any {
     useDefaultAuth: false,
     auth: {
       user: function() {
+        var username = this.request.headers['x-username'];
+        var resumeToken = this.request.headers['x-resumetoken'];
+
+        var tokenUser = verifiyDbResumeToken(username, resumeToken);
+        if (tokenUser) {
+          return { user : tokenUser };
+        }
+        
         //TODO: check token auth first
-        if (this.queryParams.token && this.queryParams.username) {
-          if (this.queryParams.token !== Meteor.settings.authToken) {
-            return null;
-          }
-          
-          return { user : Meteor.users.findOne({"username": this.queryParams.username})};
+        var authUser = verifySettingAuthToken(this.queryParams.username, this.queryParams.token);
+        if (authUser) {
+          return { user : authUser };
         }
       }
     },
@@ -86,42 +118,9 @@ function getUserBoards(username, team): any {
     },
   });
   
-  //users
-  Api.addRoute('users/:id', { authRequired: true }, {
-    get: {
-        roleRequired: ['admin'],
-        action: function () {
-          //TODO: use run as to run as user :id for this function, so that the auth token user and the target user can be different
-          var stampedToken = Accounts._generateStampedLoginToken();
-          var hashStampedToken = Accounts._hashStampedToken(stampedToken);
-          
-          //push resume token
-          Meteor.users.update(this.userId, 
-            {$push: {'services.resume.loginTokens': hashStampedToken}}
-          );
-          
-          var when = stampedToken.when;
-          
-          when.setDate(when.getDate() + 365);
-          return { 
-            'username': this.user.username,
-            'userId': this.userId,
-            'token': stampedToken.token,
-            'tokenExpire': when.toString()
-          };
-        }
-      }
-    });
+  //#Api for admins only
 
-  Api.addRoute('users/:username/:team/boards', { authRequired: true }, {
-    get: { 
-          roleRequired: ['admin'],
-          action: function() {
-            return getUserBoards(this.urlParams.username, this.urlParams.team);
-          }
-      }
-    });
-    
+  //Add user
   Api.addRoute('users', { authRequired: true }, {
     post: { 
       roleRequired: ['admin'],
@@ -141,9 +140,49 @@ function getUserBoards(username, team): any {
     }
   });
 
-  //boards
+  //get user resume token
+  //since task sub system wont be directly used as front end login, 
+  //user account will be created through api by admin(system account) in the backend system
+  //and resume token will be created through backend by admin(system account) and then pass to
+  //foront end js code as auth token
+  Api.addRoute('users/:username', { authRequired: true }, {
+    get: {
+      roleRequired: ['admin'],
+      action: function () {
+        var targetUsername = this.urlParams.username;
+        if (!targetUsername) {
+          return { stausCode: 404, message: "username is required" };
+        }
+        
+        var targetUser = Meteor.users.findOne({ username: this.urlParams.username });
+        if (!targetUser) {
+          return { stausCode: 404, message: "User with username '" + targetUsername + "' is not found" };
+        }
+        
+        var stampedToken = Accounts._generateStampedLoginToken();
+        var hashStampedToken = Accounts._hashStampedToken(stampedToken);
+        
+        //push resume token
+        Meteor.users.update(targetUser._id, 
+          {$push: {'services.resume.loginTokens': hashStampedToken}}
+        );
+        
+        var when = stampedToken.when;
+        
+        when.setDate(when.getDate() + 365);
+        return { 
+          'username': targetUsername,
+          'userId': targetUser._id,
+          'token': stampedToken.token,
+          'tokenExpire': when.toString()
+        };
+      }
+    }
+  });
+
+  //create boards
   Api.addRoute('boards', { authRequired: true }, {
-    post: { 
+    post: {
       roleRequired: ['admin'],
       action: function () {
         var boardTitle = this.bodyParams.title;
@@ -183,11 +222,11 @@ function getUserBoards(username, team): any {
     }
   });
 
+  //Give board permissions to user
   Api.addRoute('boards/:id/persmissions', { authRequired: true }, {
     post: { 
       roleRequired: ['admin'],
       action: function () {
-        
         var board = Boards.findOne({ "_id" : this.urlParams.id });
         if (board == null && board._id == null) {
           return { stausCode: 404, message: "Board not found." };
@@ -219,3 +258,14 @@ function getUserBoards(username, team): any {
       }
     }
   });
+
+  //Api for users
+  //Get user boards
+  Api.addRoute('boards/teams/:team', { authRequired: true }, {
+    get: { 
+          action: function() {
+            return getUserBoards(Meteor.userId, this.urlParams.team);
+          }
+      }
+  });
+    
