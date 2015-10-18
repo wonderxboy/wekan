@@ -72,21 +72,37 @@ function boostrapAdmin(){
   // Roles.addUsersToRoles(adminUser._id, "admin"); 
 }
 
-function getUserBoards(userId, team): any {
+function getUserBoards(userId, team, title): any {
 
   if (team == null) {
     return { stausCode: 404, message: "Team name is required" };
   }
   
   var teamnameRegex = new RegExp('^' + team.toLowerCase(), 'i')
-  var result = Boards.find(
-          { $and: [{ team: {$regex: teamnameRegex} }, 
-                   { members: { $elemMatch: { userId: userId }}}]},
-          { fields: { title:1, team:1 }})
-    .fetch();
+  var result;
 
-  if (result.length == 0){
-    return { stausCode: 404, message: "User " + userId + " does not have any board" }; 
+  if (title) {
+    var titleRegex = new RegExp('^' + title.toLowerCase(), 'i')
+
+    result = Boards.find({ $and: [{ team: {$regex: teamnameRegex }},
+                                { title: {$regex: titleRegex }},
+                                { members: { $elemMatch: { userId: userId }}}]},
+                        { fields: { title:1, team:1 }})
+      .fetch();
+  
+    if (result.length == 0){
+      return { stausCode: 404, message: "User " + userId + " does not have any board in team" + team + " with title " + title }; 
+    }
+  }
+  else{
+    result = Boards.find({ $and: [{ team: { $regex: teamnameRegex }}, 
+                                { members: { $elemMatch: { userId: userId }}}]},
+                        { fields: { title:1, team:1 }})
+                  .fetch();
+  
+    if (result.length == 0){
+      return { stausCode: 404, message: "User " + userId + " does not have any board in team" + team }; 
+    }
   }
   
   return { boards : result };
@@ -260,12 +276,20 @@ function getUserBoards(userId, team): any {
   });
 
   //Api for users
-  //Get user boards
+  //Get user boards by team
   Api.addRoute('boards/teams/:team', { authRequired: true }, {
     get: { 
           action: function() {
-            return getUserBoards(Meteor.userId, this.urlParams.team);
+            return getUserBoards(Meteor.userId, this.urlParams.team, null);
           }
       }
   });
-    
+  
+  //Get user boards by team and title
+  Api.addRoute('boards/teams/:team/:title', { authRequired: true }, {
+    get: { 
+          action: function() {
+            return getUserBoards(Meteor.userId, this.urlParams.team, this.urlParams.title);
+          }
+      }
+  });
