@@ -26,37 +26,6 @@ function getBoard(userId, doc) {
   return doc;
 }
 
-function verifiyDbResumeToken(username, resumeToken) {
-  if (!username || !resumeToken) {
-    return null;
-  }
-  var user = Meteor.users.findOne({ username: username });
-  if (user) {
-    var loginTokens = user.services.resume.loginTokens;
-    if (loginTokens && loginTokens.length > 0) {
-      var hashResumedToken = Accounts._hashStampedToken({ token: resumeToken, when: new Date() });
-      var existingToken = loginTokens[loginTokens.length - 1];
-      if (existingToken 
-          && existingToken.hashedToken == hashResumedToken.hashedToken
-          && existingToken.when <= hashResumedToken.when) {
-        return user;
-      }
-    }
-  }
-  
-  return null;
-}
-
-function verifySettingAuthToken(username, settingAuthToken){
-  if (username && settingAuthToken) {
-    if (settingAuthToken !== Meteor.settings.authToken) {
-      return null;
-    }
-    
-    return Meteor.users.findOne({ username: username });
-  }
-}
-
 function boostrapAdmin(){
   // Roles.createRole("admin");
   // var userId = Accounts.createUser({ 
@@ -72,42 +41,22 @@ function boostrapAdmin(){
   // Roles.addUsersToRoles(adminUser._id, "admin"); 
 }
 
-function getUserBoards(userId, team, title): any {
-
+function getUserBoardsApi(userId, team, title) {
   if (team == null) {
     return { stausCode: 404, message: "Team name is required" };
   }
-  
-  var teamnameRegex = new RegExp('^' + team.toLowerCase(), 'i')
-  var result;
+  var boards = getUserBoards(userId, team, title);
 
-  if (title) {
-    var titleRegex = new RegExp('^' + title.toLowerCase(), 'i')
+  if (boards.length == 0){
+      var message = "User " + userId + " does not have any board in team" + team;
+      if (title) {
+        message += " with title " + title;
+      }
+      return { stausCode: 404, message: message }; 
+  }
 
-    result = Boards.find({ $and: [{ team: {$regex: teamnameRegex }},
-                                { title: {$regex: titleRegex }},
-                                { members: { $elemMatch: { userId: userId }}}]},
-                        { fields: { title:1, team:1 }})
-      .fetch();
-  
-    if (result.length == 0){
-      return { stausCode: 404, message: "User " + userId + " does not have any board in team" + team + " with title " + title }; 
-    }
-  }
-  else{
-    result = Boards.find({ $and: [{ team: { $regex: teamnameRegex }}, 
-                                { members: { $elemMatch: { userId: userId }}}]},
-                        { fields: { title:1, team:1 }})
-                  .fetch();
-  
-    if (result.length == 0){
-      return { stausCode: 404, message: "User " + userId + " does not have any board in team" + team }; 
-    }
-  }
-  
-  return { boards : result };
+  return { barods: boards };
 }
-
   // Global API configuration
   var Api = new Restivus({
     useDefaultAuth: false,
@@ -275,12 +224,13 @@ function getUserBoards(userId, team, title): any {
     }
   });
 
+
   //Api for users
   //Get user boards by team
   Api.addRoute('boards/teams/:team', { authRequired: true }, {
     get: { 
           action: function() {
-            return getUserBoards(Meteor.userId, this.urlParams.team, null);
+            return getUserBoardsApi(Meteor.userId, this.urlParams.team, null);
           }
       }
   });
@@ -289,7 +239,7 @@ function getUserBoards(userId, team, title): any {
   Api.addRoute('boards/teams/:team/:title', { authRequired: true }, {
     get: { 
           action: function() {
-            return getUserBoards(Meteor.userId, this.urlParams.team, this.urlParams.title);
+            return getUserBoardsApi(Meteor.userId, this.urlParams.team, this.urlParams.title);
           }
       }
   });
