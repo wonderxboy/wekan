@@ -230,7 +230,7 @@ function getUserBoardsApi(userId, team, title) {
   Api.addRoute('boards/teams/:team', { authRequired: true }, {
     get: { 
           action: function() {
-            return getUserBoardsApi(Meteor.userId, this.urlParams.team, null);
+            return getUserBoardsApi(this.userId, this.urlParams.team, null);
           }
       }
   });
@@ -239,7 +239,7 @@ function getUserBoardsApi(userId, team, title) {
   Api.addRoute('boards/teams/:team/:title', { authRequired: true }, {
     get: { 
           action: function() {
-            return getUserBoardsApi(Meteor.userId, this.urlParams.team, this.urlParams.title);
+            return getUserBoardsApi(this.userId, this.urlParams.team, this.urlParams.title);
           }
       }
   });
