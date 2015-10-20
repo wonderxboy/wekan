@@ -55,25 +55,20 @@ function getUserBoardsApi(userId, team, title) {
       return { stausCode: 404, message: message }; 
   }
 
-  return { barods: boards };
+  return { boards: boards };
 }
   // Global API configuration
   var Api = new Restivus({
-    //disable cors config here, but add cors headers in default headers
-    //otherwise, default cors headers will override extra values in defaultHeaders.Access-Control-Allow-Origin and Access-Control-Allow-Headers
-    enableCors: false,
-    useDefaultAuth: false,
-    defaultHeaders: { "Access-Control-Allow-Origin": "*",
-                      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, x-username, x-resumetoken",
-                      "Content-Type": "application/json" },
+    enableCors: true,
+    useDefaultAuth: true,
     prettyJson: true,
     onLoggedIn: function () {
       console.log(this.user.username + ' (' + this.userId + ') logged in');
     },
     auth: {
       user: function() {
-        var username = this.request.headers['x-username'];
-        var resumeToken = this.request.headers['x-resumetoken'];
+        var username = this.request.headers['x-user-id'];
+        var resumeToken = this.request.headers['x-auth-token'];
 
         var tokenUser = verifiyDbResumeToken(username, resumeToken);
         if (tokenUser) {
