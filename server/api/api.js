@@ -48,7 +48,7 @@ function getUserBoardsApi(userId, team, title) {
   var boards = getUserBoards(userId, team, title);
 
   if (boards.length == 0){
-      var message = "User " + userId + " does not have any board in team" + team;
+      var message = "User " + userId + " does not have any board in team " + team;
       if (title) {
         message += " with title " + title;
       }
